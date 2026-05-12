@@ -7,28 +7,24 @@ dotenv.config({ path: resolve(__dirname, "../.env") });
 
 interface Config {
   slack: {
-    botToken: string;
-    signingSecret: string;
+    botToken: string | undefined;
+    signingSecret: string | undefined;
     defaultChannel: string;
   };
   transport: "stdio";
   serverPort: number;
 }
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return value;
-}
-
 export const config: Config = {
   slack: {
-    botToken: requireEnv("SLACK_BOT_TOKEN"),
-    signingSecret: requireEnv("SLACK_SIGNING_SECRET"),
+    botToken: process.env.SLACK_BOT_TOKEN,
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
     defaultChannel: process.env.SLACK_DEFAULT_CHANNEL ?? "general",
   },
   transport: "stdio",
   serverPort: Number(process.env.SERVER_PORT) || 3001,
 };
+
+export function isSlackConfigured(): boolean {
+  return !!config.slack.botToken && !!config.slack.signingSecret;
+}

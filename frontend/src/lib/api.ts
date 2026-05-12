@@ -1,67 +1,56 @@
-export const integrations = [
-  {
-    id: "slack",
-    name: "Slack",
-    description: "Slackワークスペース連携",
-    status: "connected" as const,
-    details: "stdio transport",
-    toolCount: 4,
-  },
-  {
-    id: "notion",
-    name: "Notion",
-    description: "Notionワークスペース連携",
-    status: "coming-soon" as const,
-  },
-  {
-    id: "backlog",
-    name: "Backlog",
-    description: "Backlogプロジェクト管理連携",
-    status: "coming-soon" as const,
-  },
-  {
-    id: "obsidian",
-    name: "Obsidian",
-    description: "Obsidianローカルナレッジベース連携",
-    status: "coming-soon" as const,
-  },
-];
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-export const tools = [
-  {
-    name: "slack_list_channels",
-    description: "Slackワークスペースのチャンネル一覧を取得する",
-    params: [
-      { name: "limit", type: "number?", required: false },
-    ],
-    active: true,
-  },
-  {
-    name: "slack_search_messages",
-    description: "Slackメッセージをキーワードで検索する",
-    params: [
-      { name: "query", type: "string", required: true },
-      { name: "channel", type: "string?", required: false },
-      { name: "count", type: "number?", required: false },
-    ],
-    active: true,
-  },
-  {
-    name: "slack_post_message",
-    description: "Slackチャンネルにメッセージを投稿する",
-    params: [
-      { name: "channel", type: "string", required: true },
-      { name: "text", type: "string", required: true },
-    ],
-    active: true,
-  },
-  {
-    name: "slack_summarize_thread",
-    description: "Slackスレッドの全返信を取得する",
-    params: [
-      { name: "channel", type: "string", required: true },
-      { name: "thread_ts", type: "string", required: true },
-    ],
-    active: true,
-  },
-];
+async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...options?.headers },
+  });
+  if (!res.ok) {
+    throw new Error(`API ${path} failed: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export interface ServerStatus {
+  name: string;
+  version: string;
+  transport: string;
+  uptime: number;
+  nodeVersion: string;
+}
+
+export interface Connection {
+  id: string;
+  name: string;
+  description: string;
+  configured: boolean;
+  connected: boolean;
+  status: "connected" | "disconnected" | "not-configured" | "coming-soon";
+  workspace?: { team?: string; user?: string };
+  toolCount: number;
+}
+
+export interface ToolParam {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+}
+
+export interface Tool {
+  name: string;
+  description: string;
+  integration: string;
+  params: ToolParam[];
+  active: boolean;
+}
+
+export const api = {
+  getStatus: () => fetchApi<ServerStatus>("/api/status"),
+  getConnections: () => fetchApi<Connection[]>("/api/connections"),
+  getTools: () => fetchApi<Tool[]>("/api/tools"),
+  testConnection: (id: string) =>
+    fetchApi<{ ok: boolean; error?: string }>(`/api/connections/${id}/test`, {
+      method: "POST",
+    }),
+};

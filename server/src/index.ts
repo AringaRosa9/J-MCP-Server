@@ -1,7 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerAllTools } from "./tools/index.js";
+import { initConnections } from "./integrations/index.js";
+import { startApiServer } from "./api.js";
+import { config } from "./config.js";
 import { logger } from "./utils/logger.js";
+
+const runMode = process.argv[2];
 
 const server = new McpServer({
   name: "j-mcp-server",
@@ -11,9 +16,17 @@ const server = new McpServer({
 registerAllTools(server);
 
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  logger.info("J-MCP Server started (stdio transport)");
+  await initConnections();
+
+  startApiServer(config.serverPort);
+
+  if (runMode !== "--api-only") {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    logger.info("MCP stdio transport connected");
+  }
+
+  logger.info("J-MCP Server started");
 }
 
 main().catch((err) => {

@@ -3,20 +3,54 @@ import { config } from "../config.js";
 import { logger } from "../utils/logger.js";
 
 export class SlackClient {
-  private client: WebClient;
+  private client: WebClient | null = null;
+  private connected = false;
+  private workspaceInfo: { team?: string; user?: string } = {};
 
   constructor() {
-    this.client = new WebClient(config.slack.botToken);
+    if (config.slack.botToken) {
+      this.client = new WebClient(config.slack.botToken);
+    }
+  }
+
+  isConfigured(): boolean {
+    return this.client !== null;
+  }
+
+  isConnected(): boolean {
+    return this.connected;
+  }
+
+  getWorkspaceInfo() {
+    return this.workspaceInfo;
+  }
+
+  private ensureClient(): WebClient {
+    if (!this.client) {
+      throw new Error("Slack is not configured. Set SLACK_BOT_TOKEN in .env");
+    }
+    return this.client;
   }
 
   async testConnection() {
-    const result = await this.client.auth.test();
-    logger.info(`Connected to Slack workspace: ${result.team}`);
-    return { ok: result.ok, team: result.team, user: result.user };
+    try {
+      const client = this.ensureClient();
+      const result = await client.auth.test();
+      this.connected = !!result.ok;
+      this.workspaceInfo = { team: result.team as string, user: result.user as string };
+      logger.info(`Connected to Slack workspace: ${result.team}`);
+      return { ok: result.ok, team: result.team, user: result.user };
+    } catch (err) {
+      this.connected = false;
+      this.workspaceInfo = {};
+      logger.warn("Slack connection test failed:", err);
+      return { ok: false, error: String(err) };
+    }
   }
 
   async listChannels(limit = 100) {
-    const result = await this.client.conversations.list({
+    const client = this.ensureClient();
+    const result = await client.conversations.list({
       limit,
       types: "public_channel,private_channel",
       exclude_archived: true,
@@ -30,8 +64,9 @@ export class SlackClient {
   }
 
   async searchMessages(query: string, channel?: string, count = 20) {
+    const client = this.ensureClient();
     const fullQuery = channel ? `in:#${channel} ${query}` : query;
-    const result = await this.client.search.messages({
+    const result = await client.search.messages({
       query: fullQuery,
       count,
       sort: "timestamp",
@@ -47,7 +82,8 @@ export class SlackClient {
   }
 
   async postMessage(channel: string, text: string) {
-    const result = await this.client.chat.postMessage({ channel, text });
+    const client = this.ensureClient();
+    const result = await client.chat.postMessage({ channel, text });
     return {
       ok: result.ok,
       channel: result.channel,
@@ -56,7 +92,8 @@ export class SlackClient {
   }
 
   async getThreadReplies(channel: string, threadTs: string) {
-    const result = await this.client.conversations.replies({
+    const client = this.ensureClient();
+    const result = await client.conversations.replies({
       channel,
       ts: threadTs,
     });
