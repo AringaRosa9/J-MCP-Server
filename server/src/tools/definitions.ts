@@ -177,6 +177,27 @@ export const toolDefinitions: ToolDefinition[] = [
       { name: "content", type: "string", required: true, description: "コメント本文" },
     ],
   },
+
+  // ── Cross-tool ──
+  {
+    name: "cross_search",
+    description: "全ツールを横断してキーワード検索する（Slack・Notion・Backlog）",
+    integration: "cross",
+    params: [
+      { name: "query", type: "string", required: true, description: "検索キーワード" },
+      { name: "sources", type: "array", required: false, description: "検索対象（slack, notion, backlog）省略時は全ツール" },
+      { name: "count", type: "number", required: false, description: "各ツールからの取得件数（デフォルト10）" },
+    ],
+  },
+  {
+    name: "cross_get_activity",
+    description: "指定日のアクティビティを全ツールから取得する",
+    integration: "cross",
+    params: [
+      { name: "date", type: "string", required: false, description: "対象日（YYYY-MM-DD形式、省略時は今日）" },
+      { name: "sources", type: "array", required: false, description: "取得対象（slack, notion, backlog）省略時は全ツール" },
+    ],
+  },
 ];
 
 export function getToolDef(name: string): ToolDefinition {

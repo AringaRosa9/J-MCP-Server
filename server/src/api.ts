@@ -12,6 +12,7 @@ import {
 } from "./config.js";
 import { logger } from "./utils/logger.js";
 import { toolDefinitions } from "./tools/definitions.js";
+import { crossSearch, getActivity } from "./tools/cross.js";
 
 function json(
   res: import("http").ServerResponse,
@@ -112,6 +113,12 @@ function getTools() {
     if (t.integration === "slack") active = slackClient.isConnected();
     if (t.integration === "notion") active = notionClient.isConnected();
     if (t.integration === "backlog") active = backlogClient.isConnected();
+    if (t.integration === "cross") {
+      active =
+        slackClient.isConnected() ||
+        notionClient.isConnected() ||
+        backlogClient.isConnected();
+    }
     return { ...t, active };
   });
 }
@@ -162,6 +169,27 @@ export function startApiServer(port: number) {
       ) {
         const id = path.match(/^\/api\/connections\/(\w+)\/test$/)![1];
         const result = await handleTestConnection(id);
+        json(res, result);
+      } else if (req.method === "GET" && path === "/api/search") {
+        const q = url.searchParams.get("q");
+        if (!q) {
+          json(res, { error: "Missing required query parameter: q" }, 400);
+          return;
+        }
+        const sourcesRaw = url.searchParams.get("sources");
+        const sources = sourcesRaw
+          ? (sourcesRaw.split(",") as ("slack" | "notion" | "backlog")[])
+          : undefined;
+        const count = Number(url.searchParams.get("count")) || undefined;
+        const result = await crossSearch(q, sources, count);
+        json(res, result);
+      } else if (req.method === "GET" && path === "/api/activity") {
+        const date = url.searchParams.get("date") ?? undefined;
+        const sourcesRaw = url.searchParams.get("sources");
+        const sources = sourcesRaw
+          ? (sourcesRaw.split(",") as ("slack" | "notion" | "backlog")[])
+          : undefined;
+        const result = await getActivity(date, sources);
         json(res, result);
       } else {
         json(res, { error: "Not found" }, 404);
