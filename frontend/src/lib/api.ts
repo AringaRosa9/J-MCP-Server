@@ -32,7 +32,13 @@ export interface Connection {
   configured: boolean;
   connected: boolean;
   status: "connected" | "disconnected" | "not-configured" | "coming-soon";
-  workspace?: { team?: string; user?: string; name?: string; id?: string };
+  workspace?: {
+    team?: string;
+    user?: string;
+    name?: string;
+    id?: string;
+    spaceKey?: string;
+  };
   toolCount: number;
 }
 

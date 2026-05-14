@@ -1,6 +1,15 @@
 import { createServer } from "http";
-import { slackClient, notionClient } from "./integrations/index.js";
-import { config, isSlackConfigured, isNotionConfigured } from "./config.js";
+import {
+  slackClient,
+  notionClient,
+  backlogClient,
+} from "./integrations/index.js";
+import {
+  config,
+  isSlackConfigured,
+  isNotionConfigured,
+  isBacklogConfigured,
+} from "./config.js";
 import { logger } from "./utils/logger.js";
 import { toolDefinitions } from "./tools/definitions.js";
 
@@ -74,10 +83,16 @@ function getConnections() {
       id: "backlog",
       name: "Backlog",
       description: "Backlogプロジェクト管理連携",
-      configured: false,
-      connected: false,
-      status: "coming-soon",
-      toolCount: 0,
+      configured: isBacklogConfigured(),
+      connected: backlogClient.isConnected(),
+      status: backlogClient.isConnected()
+        ? "connected"
+        : isBacklogConfigured()
+          ? "disconnected"
+          : "not-configured",
+      workspace: backlogClient.getSpaceInfo(),
+      toolCount: toolDefinitions.filter((t) => t.integration === "backlog")
+        .length,
     },
     {
       id: "obsidian",
@@ -96,6 +111,7 @@ function getTools() {
     let active = false;
     if (t.integration === "slack") active = slackClient.isConnected();
     if (t.integration === "notion") active = notionClient.isConnected();
+    if (t.integration === "backlog") active = backlogClient.isConnected();
     return { ...t, active };
   });
 }
@@ -106,6 +122,9 @@ async function handleTestConnection(integrationId: string) {
   }
   if (integrationId === "notion") {
     return await notionClient.testConnection();
+  }
+  if (integrationId === "backlog") {
+    return await backlogClient.testConnection();
   }
   return { ok: false, error: `Unknown integration: ${integrationId}` };
 }
