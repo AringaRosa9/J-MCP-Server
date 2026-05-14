@@ -142,7 +142,9 @@ export default function DashboardPage() {
               details={
                 conn.workspace?.team
                   ? `ワークスペース: ${conn.workspace.team}`
-                  : undefined
+                  : conn.workspace?.name
+                    ? `ユーザー: ${conn.workspace.name}`
+                    : undefined
               }
               toolCount={conn.toolCount}
             />

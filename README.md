@@ -19,7 +19,7 @@ graph TB
         B["MCP Server<br/>@modelcontextprotocol/sdk"]
         C[Tool Registry]
         D["Slack Tools<br/>4 tools"]
-        E["Notion Tools<br/>Coming Soon"]
+        E["Notion Tools<br/>6 tools"]
         F["Backlog Tools<br/>Coming Soon"]
         G["Obsidian Tools<br/>Coming Soon"]
     end
@@ -36,31 +36,14 @@ graph TB
     A <-->|stdio| B
     B --> C
     C --> D
-    C -.-> E
+    C --> E
     C -.-> F
     C -.-> G
     D --> H
-    E -.-> I
+    E --> I
     F -.-> J
     G -.-> K
-    L -.->|status| B
-```
-
-## Tool Call Flow / ツール呼び出しフロー / 工具调用流程
-
-```mermaid
-sequenceDiagram
-    participant C as Claude Client
-    participant S as J-MCP Server
-    participant T as Tool Handler
-    participant A as Slack API
-
-    C->>S: MCP Request (tool call)
-    S->>T: Route to slack_search_messages
-    T->>A: search.messages({ query })
-    A-->>T: Search results
-    T-->>S: Formatted response
-    S-->>C: MCP Response (text content)
+    L -->|HTTP + API Key| B
 ```
 
 ---
@@ -71,7 +54,7 @@ sequenceDiagram
 
 J-MCP Server 是一个基于 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) 的服务器，用于将日本职场常用工具（Slack、Notion、Backlog、Obsidian）集成到 Claude AI 工作流中。
 
-**Phase 1（当前）** 已实现 Slack 集成，提供 4 个 MCP 工具。
+**Phase 1** 已实现 Slack 集成（4 个工具），**Phase 2** 已实现 Notion 集成（6 个工具）。
 
 ### 快速开始
 
@@ -84,7 +67,7 @@ cd server && npm install
 
 # 3. 配置环境变量
 cp ../.env.example .env
-# 编辑 .env，填入你的 Slack Bot Token 和 Signing Secret
+# 编辑 .env，填入你的 Token 和 API Key
 
 # 4. 启动开发模式
 npm run dev
@@ -105,7 +88,8 @@ cd ../frontend && npm install && npm run dev
       "args": ["tsx", "/你的路径/j-mcp-server/server/src/index.ts"],
       "env": {
         "SLACK_BOT_TOKEN": "xoxb-你的token",
-        "SLACK_SIGNING_SECRET": "你的secret"
+        "SLACK_USER_TOKEN": "xoxp-你的user-token",
+        "NOTION_API_KEY": "ntn_你的api-key"
       }
     }
   }
@@ -114,6 +98,8 @@ cd ../frontend && npm install && npm run dev
 
 ### 工具 API 参考
 
+#### Slack 工具
+
 | 工具名 | 功能 | 参数 | 返回 |
 |--------|------|------|------|
 | `slack_list_channels` | 列出频道 | `limit?: number` | 频道列表（id, name, topic, memberCount） |
@@ -121,13 +107,30 @@ cd ../frontend && npm install && npm run dev
 | `slack_post_message` | 发送消息 | `channel: string`, `text: string` | 发送结果（ok, channel, timestamp） |
 | `slack_summarize_thread` | 获取讨论串 | `channel: string`, `thread_ts: string` | 回复列表（user, text, timestamp） |
 
+> **注意：** `slack_search_messages` 需要 User Token（`xoxp-`），Bot Token 不支持 search API。
+
+#### Notion 工具
+
+| 工具名 | 功能 | 参数 | 返回 |
+|--------|------|------|------|
+| `notion_search` | 全局搜索 | `query: string`, `filter?: "page"\|"database"`, `page_size?: number` | 搜索结果列表 |
+| `notion_list_databases` | 列出数据库 | `page_size?: number` | 数据库列表（id, title, url） |
+| `notion_query_database` | 查询数据库 | `database_id: string`, `filter?: object`, `sorts?: array`, `page_size?: number` | 页面列表 |
+| `notion_get_page` | 获取页面 | `page_id: string` | 页面属性和内容 |
+| `notion_create_page` | 创建页面 | `parent_id: string`, `parent_type: string`, `properties: object`, `children?: array` | 创建结果 |
+| `notion_update_page` | 更新页面 | `page_id: string`, `properties: object` | 更新结果 |
+
 ### 环境变量
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `SLACK_BOT_TOKEN` | 是 | Slack Bot 用户 OAuth Token (xoxb-...) |
-| `SLACK_SIGNING_SECRET` | 是 | Slack App 签名密钥 |
+| `SLACK_BOT_TOKEN` | 否 | Slack Bot 用户 OAuth Token (xoxb-...) |
+| `SLACK_USER_TOKEN` | 否 | Slack 用户 Token (xoxp-...)，搜索功能需要 |
 | `SLACK_DEFAULT_CHANNEL` | 否 | 默认频道（默认: general） |
+| `SLACK_ALLOWED_CHANNELS` | 否 | 允许发消息的频道白名单，逗号分隔，为空则不限制 |
+| `NOTION_API_KEY` | 否 | Notion Internal Integration Token |
+| `API_KEY` | 否 | Dashboard HTTP API 认证密钥 |
+| `SERVER_PORT` | 否 | HTTP API 端口（默认: 3001） |
 
 ---
 
@@ -137,7 +140,7 @@ cd ../frontend && npm install && npm run dev
 
 J-MCP Server は [Model Context Protocol (MCP)](https://modelcontextprotocol.io) ベースのサーバーで、日本の職場で一般的に使用されるツール（Slack、Notion、Backlog、Obsidian）を Claude AI ワークフローに統合します。
 
-**Phase 1（現在）** では Slack 連携を実装し、4つの MCP ツールを提供しています。
+**Phase 1** では Slack 連携（4ツール）、**Phase 2** では Notion 連携（6ツール）を実装しています。
 
 ### クイックスタート
 
@@ -150,7 +153,7 @@ cd server && npm install
 
 # 3. 環境変数を設定
 cp ../.env.example .env
-# .env を編集し、Slack Bot Token と Signing Secret を入力
+# .env を編集し、Token と API Key を入力
 
 # 4. 開発モードで起動
 npm run dev
@@ -171,7 +174,8 @@ cd ../frontend && npm install && npm run dev
       "args": ["tsx", "/あなたのパス/j-mcp-server/server/src/index.ts"],
       "env": {
         "SLACK_BOT_TOKEN": "xoxb-あなたのトークン",
-        "SLACK_SIGNING_SECRET": "あなたのシークレット"
+        "SLACK_USER_TOKEN": "xoxp-あなたのユーザートークン",
+        "NOTION_API_KEY": "ntn_あなたのAPIキー"
       }
     }
   }
@@ -180,6 +184,8 @@ cd ../frontend && npm install && npm run dev
 
 ### ツール API リファレンス
 
+#### Slack ツール
+
 | ツール名 | 機能 | パラメータ | 戻り値 |
 |----------|------|-----------|--------|
 | `slack_list_channels` | チャンネル一覧取得 | `limit?: number` | チャンネル一覧（id, name, topic, memberCount） |
@@ -187,13 +193,30 @@ cd ../frontend && npm install && npm run dev
 | `slack_post_message` | メッセージ投稿 | `channel: string`, `text: string` | 送信結果（ok, channel, timestamp） |
 | `slack_summarize_thread` | スレッド取得 | `channel: string`, `thread_ts: string` | 返信一覧（user, text, timestamp） |
 
+> **注意：** `slack_search_messages` は User Token（`xoxp-`）が必要です。Bot Token は search API をサポートしていません。
+
+#### Notion ツール
+
+| ツール名 | 機能 | パラメータ | 戻り値 |
+|----------|------|-----------|--------|
+| `notion_search` | グローバル検索 | `query: string`, `filter?: "page"\|"database"`, `page_size?: number` | 検索結果一覧 |
+| `notion_list_databases` | データベース一覧取得 | `page_size?: number` | データベース一覧（id, title, url） |
+| `notion_query_database` | データベースクエリ | `database_id: string`, `filter?: object`, `sorts?: array`, `page_size?: number` | ページ一覧 |
+| `notion_get_page` | ページ取得 | `page_id: string` | ページプロパティとコンテンツ |
+| `notion_create_page` | ページ作成 | `parent_id: string`, `parent_type: string`, `properties: object`, `children?: array` | 作成結果 |
+| `notion_update_page` | ページ更新 | `page_id: string`, `properties: object` | 更新結果 |
+
 ### 環境変数
 
 | 変数 | 必須 | 説明 |
 |------|------|------|
-| `SLACK_BOT_TOKEN` | はい | Slack Bot ユーザー OAuth トークン (xoxb-...) |
-| `SLACK_SIGNING_SECRET` | はい | Slack App 署名シークレット |
+| `SLACK_BOT_TOKEN` | いいえ | Slack Bot ユーザー OAuth トークン (xoxb-...) |
+| `SLACK_USER_TOKEN` | いいえ | Slack ユーザートークン (xoxp-...)、検索機能に必要 |
 | `SLACK_DEFAULT_CHANNEL` | いいえ | デフォルトチャンネル（デフォルト: general） |
+| `SLACK_ALLOWED_CHANNELS` | いいえ | メッセージ送信を許可するチャンネルのホワイトリスト（カンマ区切り） |
+| `NOTION_API_KEY` | いいえ | Notion Internal Integration トークン |
+| `API_KEY` | いいえ | ダッシュボード HTTP API 認証キー |
+| `SERVER_PORT` | いいえ | HTTP API ポート（デフォルト: 3001） |
 
 ---
 
@@ -203,7 +226,7 @@ cd ../frontend && npm install && npm run dev
 
 J-MCP Server is a [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that integrates common Japanese workplace tools (Slack, Notion, Backlog, Obsidian) into the Claude AI workflow.
 
-**Phase 1 (current)** implements Slack integration with 4 MCP tools.
+**Phase 1** implements Slack integration (4 tools), **Phase 2** implements Notion integration (6 tools).
 
 ### Quick Start
 
@@ -216,7 +239,7 @@ cd server && npm install
 
 # 3. Configure environment variables
 cp ../.env.example .env
-# Edit .env with your Slack Bot Token and Signing Secret
+# Edit .env with your tokens and API keys
 
 # 4. Start in development mode
 npm run dev
@@ -237,7 +260,8 @@ Add the following to `claude_desktop_config.json`:
       "args": ["tsx", "/your/path/j-mcp-server/server/src/index.ts"],
       "env": {
         "SLACK_BOT_TOKEN": "xoxb-your-token",
-        "SLACK_SIGNING_SECRET": "your-secret"
+        "SLACK_USER_TOKEN": "xoxp-your-user-token",
+        "NOTION_API_KEY": "ntn_your-api-key"
       }
     }
   }
@@ -246,6 +270,8 @@ Add the following to `claude_desktop_config.json`:
 
 ### Tool API Reference
 
+#### Slack Tools
+
 | Tool | Function | Parameters | Returns |
 |------|----------|-----------|---------|
 | `slack_list_channels` | List channels | `limit?: number` | Channel list (id, name, topic, memberCount) |
@@ -253,13 +279,30 @@ Add the following to `claude_desktop_config.json`:
 | `slack_post_message` | Post message | `channel: string`, `text: string` | Post result (ok, channel, timestamp) |
 | `slack_summarize_thread` | Get thread replies | `channel: string`, `thread_ts: string` | Reply list (user, text, timestamp) |
 
+> **Note:** `slack_search_messages` requires a User Token (`xoxp-`). Bot Tokens do not support the search API.
+
+#### Notion Tools
+
+| Tool | Function | Parameters | Returns |
+|------|----------|-----------|---------|
+| `notion_search` | Global search | `query: string`, `filter?: "page"\|"database"`, `page_size?: number` | Search results |
+| `notion_list_databases` | List databases | `page_size?: number` | Database list (id, title, url) |
+| `notion_query_database` | Query database | `database_id: string`, `filter?: object`, `sorts?: array`, `page_size?: number` | Page list |
+| `notion_get_page` | Get page | `page_id: string` | Page properties and content |
+| `notion_create_page` | Create page | `parent_id: string`, `parent_type: string`, `properties: object`, `children?: array` | Created page |
+| `notion_update_page` | Update page | `page_id: string`, `properties: object` | Updated page |
+
 ### Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SLACK_BOT_TOKEN` | Yes | Slack Bot User OAuth Token (xoxb-...) |
-| `SLACK_SIGNING_SECRET` | Yes | Slack App Signing Secret |
+| `SLACK_BOT_TOKEN` | No | Slack Bot User OAuth Token (xoxb-...) |
+| `SLACK_USER_TOKEN` | No | Slack User Token (xoxp-...), required for search |
 | `SLACK_DEFAULT_CHANNEL` | No | Default channel (default: general) |
+| `SLACK_ALLOWED_CHANNELS` | No | Comma-separated whitelist of channels for posting |
+| `NOTION_API_KEY` | No | Notion Internal Integration Token |
+| `API_KEY` | No | Dashboard HTTP API authentication key |
+| `SERVER_PORT` | No | HTTP API port (default: 3001) |
 
 ---
 
@@ -268,7 +311,7 @@ Add the following to `claude_desktop_config.json`:
 | Phase | Feature | Status |
 |-------|---------|--------|
 | 1 | Slack 連携 / Slack Integration | ✅ Done |
-| 2 | Notion 連携 / Notion Integration | 🔜 Planned |
+| 2 | Notion 連携 / Notion Integration | ✅ Done |
 | 3 | Backlog 連携 / Backlog Integration | 🔜 Planned |
 | 4 | Obsidian 連携 / Obsidian Integration | 🔜 Planned |
 | 5 | クロスツール検索 / Cross-tool Search | 🔜 Planned |
@@ -279,6 +322,7 @@ Add the following to `claude_desktop_config.json`:
 
 - **MCP Server:** Node.js + TypeScript + `@modelcontextprotocol/sdk`
 - **Slack:** `@slack/web-api`
+- **Notion:** `@notionhq/client`
 - **Frontend:** Next.js 16 + Tailwind CSS v4 + shadcn/ui
 - **Theme:** #0052CC (信頼感のある青) + Noto Sans JP
 

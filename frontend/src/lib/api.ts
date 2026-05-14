@@ -1,10 +1,16 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options?.headers as Record<string, string>) ?? {}),
+  };
+  if (API_KEY) {
+    headers["Authorization"] = `Bearer ${API_KEY}`;
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     throw new Error(`API ${path} failed: ${res.status}`);
   }
@@ -26,7 +32,7 @@ export interface Connection {
   configured: boolean;
   connected: boolean;
   status: "connected" | "disconnected" | "not-configured" | "coming-soon";
-  workspace?: { team?: string; user?: string };
+  workspace?: { team?: string; user?: string; name?: string; id?: string };
   toolCount: number;
 }
 

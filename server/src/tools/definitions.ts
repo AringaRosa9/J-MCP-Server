@@ -13,6 +13,7 @@ export interface ToolDefinition {
 }
 
 export const toolDefinitions: ToolDefinition[] = [
+  // ── Slack ──
   {
     name: "slack_list_channels",
     description: "Slackワークスペースのチャンネル一覧を取得する",
@@ -23,7 +24,7 @@ export const toolDefinitions: ToolDefinition[] = [
   },
   {
     name: "slack_search_messages",
-    description: "Slackメッセージをキーワードで検索する",
+    description: "Slackメッセージをキーワードで検索する（要 User Token）",
     integration: "slack",
     params: [
       { name: "query", type: "string", required: true, description: "検索キーワード" },
@@ -49,4 +50,69 @@ export const toolDefinitions: ToolDefinition[] = [
       { name: "thread_ts", type: "string", required: true, description: "スレッドのタイムスタンプ" },
     ],
   },
+
+  // ── Notion ──
+  {
+    name: "notion_search",
+    description: "Notionワークスペース内をキーワードで検索する",
+    integration: "notion",
+    params: [
+      { name: "query", type: "string", required: true, description: "検索キーワード" },
+      { name: "filter", type: "string", required: false, description: "フィルタ: page または database" },
+      { name: "page_size", type: "number", required: false, description: "取得件数（デフォルト20）" },
+    ],
+  },
+  {
+    name: "notion_list_databases",
+    description: "アクセス可能なNotionデータベースの一覧を取得する",
+    integration: "notion",
+    params: [
+      { name: "page_size", type: "number", required: false, description: "取得件数（デフォルト20）" },
+    ],
+  },
+  {
+    name: "notion_query_database",
+    description: "Notionデータベースをクエリして結果を取得する",
+    integration: "notion",
+    params: [
+      { name: "database_id", type: "string", required: true, description: "データベースID" },
+      { name: "filter", type: "object", required: false, description: "Notion APIフィルタオブジェクト" },
+      { name: "sorts", type: "array", required: false, description: "ソート条件の配列" },
+      { name: "page_size", type: "number", required: false, description: "取得件数（デフォルト20）" },
+    ],
+  },
+  {
+    name: "notion_get_page",
+    description: "Notionページのプロパティとコンテンツを取得する",
+    integration: "notion",
+    params: [
+      { name: "page_id", type: "string", required: true, description: "ページID" },
+    ],
+  },
+  {
+    name: "notion_create_page",
+    description: "Notionにページを新規作成する",
+    integration: "notion",
+    params: [
+      { name: "parent_id", type: "string", required: true, description: "親データベースまたはページのID" },
+      { name: "parent_type", type: "string", required: true, description: "親の種類: database または page" },
+      { name: "properties", type: "object", required: true, description: "ページプロパティ（Notion API形式）" },
+      { name: "children", type: "array", required: false, description: "ページコンテンツブロック（Notion API形式）" },
+    ],
+  },
+  {
+    name: "notion_update_page",
+    description: "Notionページのプロパティを更新する",
+    integration: "notion",
+    params: [
+      { name: "page_id", type: "string", required: true, description: "ページID" },
+      { name: "properties", type: "object", required: true, description: "更新するプロパティ（Notion API形式）" },
+    ],
+  },
 ];
+
+export function getToolDef(name: string): ToolDefinition {
+  const def = toolDefinitions.find((t) => t.name === name);
+  if (!def) throw new Error(`Tool definition not found: ${name}`);
+  return def;
+}
