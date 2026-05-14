@@ -10,7 +10,7 @@ const runMode = process.argv[2];
 
 const server = new McpServer({
   name: "j-mcp-server",
-  version: "0.1.0",
+  version: config.version,
 });
 
 registerAllTools(server);
