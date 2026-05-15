@@ -21,6 +21,10 @@ interface Config {
   notion: {
     apiKey: string | undefined;
   };
+  backlog: {
+    spaceUrl: string | undefined;
+    apiKey: string | undefined;
+  };
   transport: "stdio";
   serverPort: number;
   apiKey: string | undefined;
@@ -45,6 +49,10 @@ export const config: Config = {
   notion: {
     apiKey: process.env.NOTION_API_KEY,
   },
+  backlog: {
+    spaceUrl: process.env.BACKLOG_SPACE_URL?.replace(/\/+$/, ""),
+    apiKey: process.env.BACKLOG_API_KEY,
+  },
   transport: "stdio",
   serverPort: Number(process.env.SERVER_PORT) || 3001,
   apiKey: process.env.API_KEY,
@@ -56,4 +64,8 @@ export function isSlackConfigured(): boolean {
 
 export function isNotionConfigured(): boolean {
   return !!config.notion.apiKey;
+}
+
+export function isBacklogConfigured(): boolean {
+  return !!config.backlog.spaceUrl && !!config.backlog.apiKey;
 }

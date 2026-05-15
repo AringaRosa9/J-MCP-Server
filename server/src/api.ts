@@ -1,8 +1,19 @@
 import { createServer } from "http";
-import { slackClient, notionClient } from "./integrations/index.js";
-import { config, isSlackConfigured, isNotionConfigured } from "./config.js";
+import {
+  slackClient,
+  notionClient,
+  backlogClient,
+} from "./integrations/index.js";
+import {
+  config,
+  isSlackConfigured,
+  isNotionConfigured,
+  isBacklogConfigured,
+} from "./config.js";
 import { logger } from "./utils/logger.js";
 import { toolDefinitions } from "./tools/definitions.js";
+import { crossSearch, getActivity } from "./tools/cross.js";
+import { generateDailyReport } from "./tools/report.js";
 
 function json(
   res: import("http").ServerResponse,
@@ -74,10 +85,16 @@ function getConnections() {
       id: "backlog",
       name: "Backlog",
       description: "Backlogプロジェクト管理連携",
-      configured: false,
-      connected: false,
-      status: "coming-soon",
-      toolCount: 0,
+      configured: isBacklogConfigured(),
+      connected: backlogClient.isConnected(),
+      status: backlogClient.isConnected()
+        ? "connected"
+        : isBacklogConfigured()
+          ? "disconnected"
+          : "not-configured",
+      workspace: backlogClient.getSpaceInfo(),
+      toolCount: toolDefinitions.filter((t) => t.integration === "backlog")
+        .length,
     },
     {
       id: "obsidian",
@@ -96,6 +113,13 @@ function getTools() {
     let active = false;
     if (t.integration === "slack") active = slackClient.isConnected();
     if (t.integration === "notion") active = notionClient.isConnected();
+    if (t.integration === "backlog") active = backlogClient.isConnected();
+    if (t.integration === "cross") {
+      active =
+        slackClient.isConnected() ||
+        notionClient.isConnected() ||
+        backlogClient.isConnected();
+    }
     return { ...t, active };
   });
 }
@@ -106,6 +130,9 @@ async function handleTestConnection(integrationId: string) {
   }
   if (integrationId === "notion") {
     return await notionClient.testConnection();
+  }
+  if (integrationId === "backlog") {
+    return await backlogClient.testConnection();
   }
   return { ok: false, error: `Unknown integration: ${integrationId}` };
 }
@@ -144,6 +171,44 @@ export function startApiServer(port: number) {
         const id = path.match(/^\/api\/connections\/(\w+)\/test$/)![1];
         const result = await handleTestConnection(id);
         json(res, result);
+      } else if (req.method === "GET" && path === "/api/search") {
+        const q = url.searchParams.get("q");
+        if (!q) {
+          json(res, { error: "Missing required query parameter: q" }, 400);
+          return;
+        }
+        const sourcesRaw = url.searchParams.get("sources");
+        const sources = sourcesRaw
+          ? (sourcesRaw.split(",") as ("slack" | "notion" | "backlog")[])
+          : undefined;
+        const count = Number(url.searchParams.get("count")) || undefined;
+        const result = await crossSearch(q, sources, count);
+        json(res, result);
+      } else if (req.method === "GET" && path === "/api/activity") {
+        const date = url.searchParams.get("date") ?? undefined;
+        const sourcesRaw = url.searchParams.get("sources");
+        const sources = sourcesRaw
+          ? (sourcesRaw.split(",") as ("slack" | "notion" | "backlog")[])
+          : undefined;
+        const result = await getActivity(date, sources);
+        json(res, result);
+      } else if (req.method === "GET" && path === "/api/report") {
+        const date = url.searchParams.get("date") ?? undefined;
+        const fmt = url.searchParams.get("format");
+        const format =
+          fmt === "json" || fmt === "markdown" ? fmt : "markdown";
+        const report = await generateDailyReport(date, format);
+        if (format === "markdown" && report.markdown) {
+          res.writeHead(200, {
+            "Content-Type": "text/markdown; charset=utf-8",
+            "Access-Control-Allow-Origin": config.apiKey
+              ? "http://localhost:3000"
+              : "*",
+          });
+          res.end(report.markdown);
+        } else {
+          json(res, report);
+        }
       } else {
         json(res, { error: "Not found" }, 404);
       }
