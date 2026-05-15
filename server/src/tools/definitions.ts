@@ -198,6 +198,17 @@ export const toolDefinitions: ToolDefinition[] = [
       { name: "sources", type: "array", required: false, description: "取得対象（slack, notion, backlog）省略時は全ツール" },
     ],
   },
+
+  // ── Report ──
+  {
+    name: "generate_daily_report",
+    description: "指定日の日報を全ツールのアクティビティから自動生成する",
+    integration: "cross",
+    params: [
+      { name: "date", type: "string", required: false, description: "対象日（YYYY-MM-DD形式、省略時は今日）" },
+      { name: "format", type: "string", required: false, description: "出力形式: markdown または json（デフォルト: markdown）" },
+    ],
+  },
 ];
 
 export function getToolDef(name: string): ToolDefinition {

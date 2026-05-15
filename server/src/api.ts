@@ -13,6 +13,7 @@ import {
 import { logger } from "./utils/logger.js";
 import { toolDefinitions } from "./tools/definitions.js";
 import { crossSearch, getActivity } from "./tools/cross.js";
+import { generateDailyReport } from "./tools/report.js";
 
 function json(
   res: import("http").ServerResponse,
@@ -191,6 +192,23 @@ export function startApiServer(port: number) {
           : undefined;
         const result = await getActivity(date, sources);
         json(res, result);
+      } else if (req.method === "GET" && path === "/api/report") {
+        const date = url.searchParams.get("date") ?? undefined;
+        const fmt = url.searchParams.get("format");
+        const format =
+          fmt === "json" || fmt === "markdown" ? fmt : "markdown";
+        const report = await generateDailyReport(date, format);
+        if (format === "markdown" && report.markdown) {
+          res.writeHead(200, {
+            "Content-Type": "text/markdown; charset=utf-8",
+            "Access-Control-Allow-Origin": config.apiKey
+              ? "http://localhost:3000"
+              : "*",
+          });
+          res.end(report.markdown);
+        } else {
+          json(res, report);
+        }
       } else {
         json(res, { error: "Not found" }, 404);
       }
